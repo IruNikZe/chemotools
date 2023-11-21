@@ -2,15 +2,15 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from chemotools._utils.finite_differences import calc_forward_diff_kernel
 from chemotools.augmentation import (
     BaselineShift,
-    ExponentialNoise, 
+    ExponentialNoise,
     IndexShift,
-    NormalNoise, 
+    NormalNoise,
     SpectrumScale,
     UniformNoise,
 )
-
 from chemotools.baseline import (
     AirPls,
     ArPls,
@@ -20,6 +20,7 @@ from chemotools.baseline import (
     SubtractReference,
 )
 from chemotools.derivative import NorrisWilliams, SavitzkyGolay
+from chemotools.feature_selection import IndexSelector, RangeCut
 from chemotools.scale import MinMaxScaler, NormScaler, PointScaler
 from chemotools.scatter import (
     ExtendedMultiplicativeScatterCorrection,
@@ -28,18 +29,38 @@ from chemotools.scatter import (
     StandardNormalVariate,
 )
 from chemotools.smooth import MeanFilter, MedianFilter, WhittakerSmooth
-from chemotools.feature_selection import IndexSelector, RangeCut
 from tests.fixtures import (
-    spectrum,
-    spectrum_arpls,
     reference_airpls,
     reference_arpls,
+    reference_finite_differences,
     reference_msc_mean,
     reference_msc_median,
     reference_sg_15_2,
     reference_snv,
     reference_whitakker,
+    spectrum,
+    spectrum_arpls,
 )
+
+
+def test_forward_diff_kernel(
+    reference_finite_differences: list[tuple[int, int, np.ndarray]]
+) -> None:
+    # Arrange
+    for differences, accuracy, reference in reference_finite_differences:
+        # Act
+        kernel = calc_forward_diff_kernel(differences=differences, accuracy=accuracy)
+
+        # Assert
+        assert kernel.size == reference.size, (
+            f"Difference order {differences} with accuracy {accuracy} "
+            f"expected kernel size {reference.size} but got {kernel.size}"
+        )
+        assert np.allclose(kernel, reference, atol=1e-8), (
+            f"Difference order {differences} with accuracy {accuracy} "
+            f"expected kernel\n{reference.tolist()}\n"
+            f"but got\n{kernel.tolist()}"
+        )
 
 
 def test_air_pls(spectrum, reference_airpls):
@@ -75,9 +96,11 @@ def test_baseline_shift():
 
     # Assert
     assert spectrum.shape == spectrum_corrected.shape
-    assert np.mean(spectrum_corrected[0]) > np.mean(spectrum[0]) 
+    assert np.mean(spectrum_corrected[0]) > np.mean(spectrum[0])
     assert np.isclose(np.std(spectrum_corrected[0]), 0.0, atol=1e-8)
-    assert np.isclose(np.mean(spectrum_corrected[0]) - np.mean(spectrum[0]), 0.77395605, atol=1e-8)
+    assert np.isclose(
+        np.mean(spectrum_corrected[0]) - np.mean(spectrum[0]), 0.77395605, atol=1e-8
+    )
 
 
 def test_constant_baseline_correction():
@@ -119,8 +142,7 @@ def test_exponential_noise():
 
     # Assert
     assert spectrum.shape == spectrum_corrected.shape
-    assert np.allclose(np.mean(spectrum_corrected[0])-1, 0.1, atol=1e-2)
-
+    assert np.allclose(np.mean(spectrum_corrected[0]) - 1, 0.1, atol=1e-2)
 
 
 def test_extended_baseline_correction():
@@ -164,7 +186,6 @@ def test_extended_baseline_correction_with_no_reference():
     # Assert
     with pytest.raises(ValueError):
         emsc.fit_transform(spectrum)
-
 
 
 def test_extended_baseline_correction_with_wrong_reference():
@@ -232,7 +253,6 @@ def test_extended_baseline_correction_through_msc_median(spectrum):
 
     # Assert
     assert np.allclose(spectrum_emsc[0], spectrum_msc, atol=1e-8)
-    
 
 
 def test_index_selector():
@@ -279,13 +299,15 @@ def test_index_selector_with_wavenumbers():
 def test_index_selector_with_wavenumbers_and_dataframe():
     # Arrange
     wavenumbers = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0])
-    spectrum = pd.DataFrame(np.array([[1.0, 2.0, 3.0, 5.0, 8.0, 13.0, 21.0, 34.0, 55.0, 89.0]]))
+    spectrum = pd.DataFrame(
+        np.array([[1.0, 2.0, 3.0, 5.0, 8.0, 13.0, 21.0, 34.0, 55.0, 89.0]])
+    )
     expected = np.array([[1.0, 2.0, 3.0, 34.0, 55.0, 89.0]])
 
     # Act
     select_features = IndexSelector(
         features=np.array([1, 2, 3, 8, 9, 10]), wavenumbers=wavenumbers
-    ).set_output(transform='pandas')
+    ).set_output(transform="pandas")
 
     spectrum_corrected = select_features.fit_transform(spectrum)
 
@@ -523,7 +545,7 @@ def test_normal_noise():
 
     # Assert
     assert spectrum.shape == spectrum_corrected.shape
-    assert np.allclose(np.mean(spectrum_corrected[0])-1, 0, atol=1e-2)
+    assert np.allclose(np.mean(spectrum_corrected[0]) - 1, 0, atol=1e-2)
     assert np.allclose(np.std(spectrum_corrected[0]), 0.5, atol=1e-2)
 
 
@@ -628,7 +650,9 @@ def test_range_cut_by_wavenumber_with_dataframe():
     # Arrange
     wavenumbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     spectrum = pd.DataFrame(np.array([[10, 12, 14, 16, 14, 12, 10, 12, 14, 16]]))
-    range_cut = RangeCut(start=2.5, end=7.9, wavenumbers=wavenumbers).set_output(transform='pandas')
+    range_cut = RangeCut(start=2.5, end=7.9, wavenumbers=wavenumbers).set_output(
+        transform="pandas"
+    )
 
     # Act
     spectrum_corrected = range_cut.fit_transform(spectrum)
@@ -747,8 +771,8 @@ def test_uniform_noise():
 
     # Assert
     assert spectrum.shape == spectrum_corrected.shape
-    assert np.allclose(np.mean(spectrum_corrected[0])-1, 0, atol=1e-2)
-    assert np.allclose(np.std(spectrum_corrected[0]), np.sqrt(1/3), atol=1e-2)
+    assert np.allclose(np.mean(spectrum_corrected[0]) - 1, 0, atol=1e-2)
+    assert np.allclose(np.std(spectrum_corrected[0]), np.sqrt(1 / 3), atol=1e-2)
 
 
 def test_whitakker_smooth(spectrum, reference_whitakker):
