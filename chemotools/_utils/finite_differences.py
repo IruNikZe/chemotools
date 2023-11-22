@@ -40,7 +40,7 @@ def calc_forward_diff_kernel(
     series by means of a convolution, e.g.,
 
     ```python
-        kernel, _, _ = calc_forward_fin_diff_kernel(differences=2, accuracy=1)
+        kernel = calc_forward_fin_diff_kernel(differences=2, accuracy=1)
         differences = np.convolve(series, kernel) # boundaries require special care
     ```
 
