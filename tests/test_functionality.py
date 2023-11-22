@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from chemotools._utils.finite_differences import calc_forward_diff_kernel
 from chemotools.augmentation import (
     BaselineShift,
     ExponentialNoise,
@@ -32,7 +31,6 @@ from chemotools.smooth import MeanFilter, MedianFilter, WhittakerSmooth
 from tests.fixtures import (
     reference_airpls,
     reference_arpls,
-    reference_finite_differences,
     reference_msc_mean,
     reference_msc_median,
     reference_sg_15_2,
@@ -41,26 +39,6 @@ from tests.fixtures import (
     spectrum,
     spectrum_arpls,
 )
-
-
-def test_forward_diff_kernel(
-    reference_finite_differences: list[tuple[int, int, np.ndarray]]
-) -> None:
-    # Arrange
-    for differences, accuracy, reference in reference_finite_differences:
-        # Act
-        kernel = calc_forward_diff_kernel(differences=differences, accuracy=accuracy)
-
-        # Assert
-        assert kernel.size == reference.size, (
-            f"Difference order {differences} with accuracy {accuracy} "
-            f"expected kernel size {reference.size} but got {kernel.size}"
-        )
-        assert np.allclose(kernel, reference, atol=1e-8), (
-            f"Difference order {differences} with accuracy {accuracy} "
-            f"expected kernel\n{reference.tolist()}\n"
-            f"but got\n{kernel.tolist()}"
-        )
 
 
 def test_air_pls(spectrum, reference_airpls):

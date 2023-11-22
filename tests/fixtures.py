@@ -93,14 +93,13 @@ def reference_whitakker() -> np.ndarray:
 def reference_finite_differences() -> list[tuple[int, int, np.ndarray]]:
     fin_diff_table = np.genfromtxt(
         os.path.join(path_to_resources, "reference_finite_differences.csv"),
-        skip_header=1,
+        skip_header=2,
         delimiter=",",
-        missing_values="",
+        missing_values="#N/A",
         filling_values=np.nan,
         dtype=np.float64,
     )
     fin_diff_ordered_coeffs = []
-    print(fin_diff_table)
     for row_idx in range(0, fin_diff_table.shape[0]):
         # the first column is the difference order, the second column is the accuracy,
         # and the remaining columns are the coefficients where the trailing NaNs are

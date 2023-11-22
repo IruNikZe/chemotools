@@ -101,7 +101,3 @@ def calc_forward_diff_kernel(
     )
 
     return fin_diff_kernel
-
-
-for iter_i in range(1, 7):
-    print(calc_forward_diff_kernel(differences=4, accuracy=iter_i))
